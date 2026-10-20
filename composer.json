@@ -1,0 +1,9 @@
+{
+  "name": "julianandreszapata/bookflow-php-api",
+  "description": "Layered PHP REST API for library inventory and lending, using JSON file persistence for a local demo.",
+  "type": "project",
+  "require": { "php": ">=8.2", "ext-json": "*" },
+  "autoload": { "psr-4": { "BookFlow\\": "src/" } },
+  "require-dev": { "phpunit/phpunit": "^11.0" },
+  "scripts": { "test": "phpunit" }
+}

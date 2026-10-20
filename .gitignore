@@ -1,0 +1,6 @@
+/vendor/
+/storage/bookflow.json
+/.env
+/.env.*
+!.env.example
+.phpunit.cache/
