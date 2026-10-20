@@ -1,85 +1,116 @@
-# BookFlow — PHP API
+# BookFlow — API REST con PHP
 
-A lightweight PHP 8.2+ REST API implementing the same library-lending rules as the .NET and Node.js versions. It uses explicit Domain, Application, Infrastructure, and HTTP folders without requiring a framework, so the layering is visible and the app can be run with PHP's built-in development server.
+API REST ligera para administrar libros, ejemplares, préstamos y devoluciones de una biblioteca. Se implementa sin depender de un framework, con el propósito de hacer visible la separación entre dominio, casos de uso, persistencia y capa HTTP.
 
-## Features
+> **Alcance:** proyecto personal de portafolio con datos ficticios. La persistencia en archivo JSON está pensada para una demostración local, no para múltiples usuarios concurrentes ni para producción.
 
-- List and register books.
-- Track total copies and available copies.
-- Create loans when stock is available.
-- Return loans once; duplicate returns are rejected.
-- Validate request bodies and map business errors to HTTP status codes.
-- Persist demo state in a local JSON file under `storage/bookflow.json`.
+## Funcionalidades
 
-## Architecture
+- Consultar y registrar libros.
+- Mantener el total de ejemplares y las unidades disponibles.
+- Registrar préstamos únicamente si hay disponibilidad.
+- Registrar una devolución una sola vez.
+- Validar las solicitudes y devolver códigos HTTP apropiados.
+- Guardar los datos de demostración en `storage/bookflow.json`.
+
+## Tecnologías y requisitos
+
+- PHP 8.2 o superior, con extensión JSON habilitada.
+- Composer 2.
+- Servidor de desarrollo integrado de PHP.
+
+## Arquitectura
 
 ```mermaid
-flowchart TB
-  HTTP[public/index.php / HTTP routing] --> APP[Application / LibraryService]
-  APP --> DOMAIN[Domain / Book and Loan]
-  APP --> PORT[LibraryRepository contract]
-  ADAPTER[Infrastructure / JsonFileLibraryRepository] -. implements .-> PORT
-  APP --> ADAPTER
+flowchart TD
+  HTTP[public/index.php / rutas HTTP] --> APP[Application / LibraryService]
+  APP --> DOMAIN[Domain / Book y Loan]
+  APP --> PORT[Contrato LibraryRepository]
+  ADAPTER[Infrastructure / JsonFileLibraryRepository] -. implementa .-> PORT
   ADAPTER --> FILE[(storage/bookflow.json)]
 ```
 
-- `src/Domain`: business entities and invariants.
-- `src/Application`: repository contract and use-case orchestration.
-- `src/Infrastructure`: JSON-file persistence adapter.
-- `public/index.php`: HTTP boundary, request parsing, status codes, JSON responses.
-- `storage/bookflow.json`: generated local data file, ignored by Git.
+- `src/Domain`: entidades y reglas de negocio.
+- `src/Application`: contrato de repositorio y coordinación de casos de uso.
+- `src/Infrastructure`: adaptador que persiste el estado en JSON.
+- `public/index.php`: enrutamiento HTTP, lectura de solicitudes, códigos de estado y respuestas JSON.
+- `storage/bookflow.json`: archivo local generado al guardar datos; no debe subirse al repositorio.
 
-## Requirements
+## Instalación y ejecución en Windows
 
-- PHP 8.2 or newer with JSON enabled.
-- Composer 2.
+Abre PowerShell en la raíz del proyecto y comprueba las herramientas:
 
-## Install and run
+```powershell
+php --version
+composer --version
+```
+
+Instala dependencias y arranca el servidor:
 
 ```powershell
 composer install
 php -S 127.0.0.1:8082 -t public public/index.php
 ```
 
-Open `http://127.0.0.1:8082/api/health` or use the endpoints below. The first write creates `storage/bookflow.json` with sample books. This file is local state and must not be committed.
+Abre `http://127.0.0.1:8082/api/health` para comprobar el servicio. Las primeras operaciones de escritura crean el archivo local con datos de ejemplo.
 
 ## Endpoints
 
-| Method | Endpoint | Purpose |
+| Método | Ruta | Propósito |
 |---|---|---|
-| GET | `/api/health` | Health check |
-| GET | `/api/books` | List books |
-| POST | `/api/books` | Register a book |
-| GET | `/api/loans` | List loans |
-| POST | `/api/loans` | Register a loan |
-| PATCH | `/api/loans/{id}/return` | Return a loan |
+| `GET` | `/api/health` | Estado de la API |
+| `GET` | `/api/books` | Listar libros |
+| `POST` | `/api/books` | Registrar libro |
+| `GET` | `/api/loans` | Listar préstamos |
+| `POST` | `/api/loans` | Registrar préstamo |
+| `PATCH` | `/api/loans/{id}/return` | Registrar devolución |
 
-Example book body:
-
-```json
-{ "title": "Clean Code", "author": "Robert C. Martin", "isbn": "9780132350884", "totalCopies": 3 }
-```
-
-Example loan body (replace `bookId` with a real ID from `GET /api/books`):
+Ejemplo para registrar un libro:
 
 ```json
-{ "bookId": "BOOK_ID", "borrowerName": "Alex Rivera", "dueDate": "2026-11-01T12:00:00Z" }
+{
+  "title": "Clean Code",
+  "author": "Robert C. Martin",
+  "isbn": "9780132350884",
+  "totalCopies": 3
+}
 ```
 
-## Clean Code and SOLID
+Para crear un préstamo, utiliza un identificador real obtenido de `GET /api/books`:
 
-- HTTP routing does not own business logic.
-- `LibraryService` coordinates use cases and depends on the repository contract.
-- Domain entities enforce stock and return invariants.
-- `JsonFileLibraryRepository` is an adapter; it can be replaced by a SQL repository without putting persistence code into domain entities.
+```json
+{
+  "bookId": "ID_DEL_LIBRO",
+  "borrowerName": "Alex Rivera",
+  "dueDate": "2026-11-01T12:00:00Z"
+}
+```
 
-## Limitations and production hardening
+## Diseño por capas y principios de código limpio
 
-This is a portfolio demo, not production software. JSON-file persistence is appropriate only for a local demo and has limited concurrency guarantees. There is no authentication, authorization, rate limiting, database transaction, migration system, monitoring, or deployment configuration. Use fictional data only. For production, replace the JSON adapter with PostgreSQL/MySQL, add transaction/concurrency controls, tests, authentication/authorization, and deployment automation.
+- La capa HTTP recibe solicitudes y construye respuestas, pero no contiene las reglas centrales del préstamo.
+- `LibraryService` coordina los casos de uso y utiliza el contrato `LibraryRepository`.
+- Las entidades del dominio verifican invariantes como disponibilidad y devolución única.
+- `JsonFileLibraryRepository` es un adaptador de persistencia que puede reemplazarse por una implementación SQL sin introducir SQL en el dominio.
 
-## Suggested improvements
+## Pruebas
 
-- Add PHPUnit domain and service tests.
-- Add a MySQL/PostgreSQL implementation of the repository.
-- Add request DTOs and a framework adapter (for example Laravel) while keeping the domain/application layers isolated.
-- Add CI for linting and tests.
+El proyecto incluye pruebas para el dominio. Instala dependencias con Composer y ejecuta:
+
+```powershell
+composer test
+```
+
+Si el script `test` no está configurado en `composer.json`, utiliza PHPUnit directamente:
+
+```powershell
+vendor\bin\phpunit
+```
+
+## Limitaciones y mejoras pendientes
+
+Este prototipo no incluye autenticación, autorización, límites de frecuencia, transacciones ni garantías de concurrencia. La escritura en JSON puede perder actualizaciones si varios procesos escriben simultáneamente. Para acercarlo a un escenario productivo, sustituye el adaptador por PostgreSQL o MySQL, incorpora transacciones, autorización, pruebas de integración, logging y CI.
+
+## Contexto del proyecto
+
+Proyecto personal de portafolio orientado a demostrar separación de responsabilidades y encapsulación de reglas de negocio en PHP. La versión publicada debe ejecutarse y probarse en el entorno local antes de considerarse validada.
